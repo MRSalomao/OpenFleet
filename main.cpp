@@ -17,7 +17,7 @@
 #include "displayOpenDE.h"
 #include "omplapp/config.h"
 
-#include <drawstuff/drawstuff.h>
+#include <drawstuff/drawstuff.h> // TODO: get rid of this
 
 #include <boost/thread.hpp>
 
