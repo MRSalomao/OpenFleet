@@ -181,9 +181,16 @@ def propagate(x, u, del_t):
 	
 	return x_prop	
 
-#EXTENDS X_NEAR TOWARDS X BY SELECTING 'BEST' CONTROL
-#FOR LOOP CAN BE MADE PARALLEL
-#RETURNS STATE, CONTROL PAIR
+#DESCRIPTION:
+#	EXTENDS X_NEAR TOWARDS X BY SELECTING 'BEST' CONTROL
+#	FOR LOOP CAN BE MADE PARALLEL
+#INPUT: 
+#	X IS 'RANDOM' STATE 
+#	X_NEAR IS NEAREST STATE IN TREE TO RANDOM STATE
+#	CONTROL IS A MATRIX WITH (NUMBER OF CONTROLS X CONTROL SIZE)
+#OUTPUT:
+#	BEST_STATE IS THE STATE WITH THE NEAREST 'DISTANCE' TO X
+#	BEST_CONTROL IS THE CONTROL THAT GENERATES BEST_STATE
 def NEW_STATE(x, x_near, u_control):
 
 	T = .1
@@ -430,8 +437,212 @@ def generate_BiD_path(start_state, goal_state, controls):
 	return [rrt_states_A, path_states_A, path_controls_A,
 			rrt_states_B, path_states_B, path_controls_B]
 
-#SIMPLE FLEET PLANNER. APPLES A BI-PARTITE MATCHING ALGORITHM
-#BASED ON METRIC DISTANCES
+
+#sphere based collision checking
+def collision(state_a, state_b):
+	
+	radius = math.sqrt((l/2.)**2 + (w/2.)**2 + (d/2.)**2)
+	xa = state_a[0]; ya = state_a[1]; za = state_a[2];
+	xb = state_b[0]; yb = state_b[1]; zb = state_b[2];
+	
+	if (xa-xb)**2. + (ya-yb)**2. + (za-zb)**2. < radius**2.:
+		return False
+	else:
+		return True
+
+def valid_state(state, siblings):
+		n_sibilings = len(siblings[:,0])
+		
+		for i in range(n_sibilings):
+		
+			if collision(state,siblings[i]):
+				return False
+				
+		return True
+
+def collision_paths(path, sibling_paths):
+	
+	path_length = len(path[:,0])
+	
+	for i in range(path_length):
+		if valid_state(path[i,:], sibling_paths[:,i,:]) == False:
+			return False	
+	
+	return True	
+	
+
+def collision_free_BiD(start_state, goal_state, sibling_path, controls):
+
+	n_sibilings = len(sibling_path[:,0,0])
+	sibling_length = len(sibling_path[0,:,0])
+	
+	initial_state = start_state
+	final_state = goal_state
+
+	#initialize rrt A
+	rrt_graph_A = nx.Graph(); rrt_graph_A.add_node(0)
+
+	#initialize lookup tables A
+	rrt_states_A = initial_state
+	rrt_controls_A = [0]
+
+	#initialize rrt B
+	rrt_graph_B = nx.Graph(); rrt_graph_B.add_node(0)
+
+	#initialize lookup tables B
+	rrt_states_B = final_state
+	rrt_controls_B = [0]
+
+	best_dist = float("inf")
+
+	path_A = [0]
+	path_B = [0]
+
+	count = 0
+	while True:
+
+		#generate randomm state
+		rand_state = random_state()	
+
+		if count%2 == 0:
+
+			#extend tree A towards a random state
+			index_A, newstate_A, newcontrol_A = EXTEND(rrt_graph_A, rrt_states_A, 
+												rrt_controls_A, rand_state,
+												controls)
+			
+			depth = shortest_path_length(rrt_graph_A, 0, index_A)
+			
+#caution: indexing error possible			
+			if depth + 1 > sibling_length:
+				sibling_states = sibling_path[:,sibling_length,:]
+			else:
+				sibling_states = sibling_path[:,depth+1,:]
+			
+			#if there is a collision skip
+			if valid_state(newstate_A, sibling_states) == False:
+				continue
+			
+			#update lookup tables A
+			rrt_states_A = np.vstack([rrt_states_A, newstate_A])
+			rrt_controls_A = np.column_stack([rrt_controls_A, newcontrol_A])
+			#update graphs A
+			n_nodes_A = rrt_states_A.shape[0] - 1
+			rrt_graph_A.add_node(n_nodes_A)
+			rrt_graph_A.add_edge(index_A, n_nodes_A)
+
+			#extend tree B towards newstate A
+			index_B, newstate_B, newcontrol_B = EXTEND(rrt_graph_B, rrt_states_B, 
+												rrt_controls_B, newstate_A,
+												-controls)
+										
+			#update lookup tables B
+			rrt_states_B = np.vstack([rrt_states_B, newstate_B])
+			rrt_controls_B = np.column_stack([rrt_controls_B, newcontrol_B])		
+		
+			#update graphs B
+			n_nodes_B = rrt_states_B.shape[0] - 1
+			rrt_graph_B.add_node(n_nodes_B)
+			rrt_graph_B.add_edge(index_B, n_nodes_B)
+					
+			#if newstate is within epsilon of goal state, determine path and break
+			dist = state_metric(newstate_A, newstate_B)
+			if dist <= eps:
+				path_A = nx.shortest_path(rrt_graph_A, 0, n_nodes_A)
+				path_B = nx.shortest_path(rrt_graph_B, 0, n_nodes_B)
+				break
+		
+		else:	
+			#extend tree B towards random state
+			index_B, newstate_B, newcontrol_B = EXTEND(rrt_graph_B, rrt_states_B, 
+												rrt_controls_B, rand_state,
+												-controls)
+										
+			#update lookup tables B
+			rrt_states_B = np.vstack([rrt_states_B, newstate_B])
+			rrt_controls_B = np.column_stack([rrt_controls_B, newcontrol_B])		
+		
+			#update graphs B
+			n_nodes_B = rrt_states_B.shape[0] - 1
+			rrt_graph_B.add_node(n_nodes_B)
+			rrt_graph_B.add_edge(index_B, n_nodes_B)
+		
+			#extend tree A towards newstateB
+			index_A, newstate_A, newcontrol_A = EXTEND(rrt_graph_A, rrt_states_A, 
+												rrt_controls_A, newstate_B,
+												controls)
+												
+			
+			depth = shortest_path_length(rrt_graph_A, 0, index_A)
+			
+#caution: indexing error possible			
+			if depth + 1 > sibling_length:
+				sibling_states = sibling_path[:,sibling_length,:]
+			else:
+				sibling_states = sibling_path[:,depth+1,:]
+	
+			#if there is a collision skip
+			if valid_state(newstate_A, sibling_states) == False:
+				continue
+																
+			#update lookup tables A
+			rrt_states_A = np.vstack([rrt_states_A, newstate_A])
+			rrt_controls_A = np.column_stack([rrt_controls_A, newcontrol_A])
+			#update graphs A
+			n_nodes_A = rrt_states_A.shape[0] - 1
+			rrt_graph_A.add_node(n_nodes_A)
+			rrt_graph_A.add_edge(index_A, n_nodes_A)
+		
+			#if newstate is within epsilon of goal state, determine path and break
+			dist = state_metric(newstate_A, newstate_B)
+			if dist <= eps:
+				path_A = nx.shortest_path(rrt_graph_A, 0, n_nodes_A)
+				path_B = nx.shortest_path(rrt_graph_B, 0, n_nodes_B)
+				
+				path_states_A = np.zeros([len(path_A), 13])
+				for i in range(len(path_A)):
+					path_states_A[i,:] = rrt_states_A[path_A[i],:]
+				
+				path_states_B = np.zeros([len(path_B), 13])
+				for i in range(len(path_B)):
+					path_states_B[i,:] = rrt_states_B[path_B[i],:]
+				
+				b_states = np.fliplr(path_states_B.transpose()).transpose()
+				
+				a_length = len(path_states_A)
+
+				if a_length > sibling_length:
+					
+				else:
+				
+				remaining_path = sibling_path[:,n_sibilings - a_length,:]
+				
+				#FINISHING UP THIS PART
+				
+				
+				break		
+				
+		count += 1
+
+		if dist < best_dist:
+			best_dist = dist
+
+		if (count%50) == 0:
+			print('	BEST DISTANCE:		' + str(best_dist))
+#			print('DIST:		' + str(dist))
+
+	return 0
+
+
+#DESCRIPTION:
+#	SIMPLE FLEET PLANNER. APPLES A BI-PARTITE MATCHING ALGORITHM
+#	BASED ON METRIC DISTANCES
+#INPUT: 
+#	INITIAL_FLEET IS A MATRIX (FLEET SIZE X STATE SIZE)
+#	FINAL_FLEET IS DITTO
+#	CONTROL IS A MATRIX WITH (NUMBER OF CONTROLS X CONTROL SIZE)
+#OUTPUT:
+#	FLEET PATHS IS A 3D ARRAY (FLEET SIZE X PATH LENGTH X STATE SIZE)
 def fleet_simple(initial_fleet, final_fleet, control):
 
 	#size of fleet
@@ -500,6 +711,11 @@ def fleet_simple(initial_fleet, final_fleet, control):
 				fleet_paths[i,j,:] = final_state
 	 
 	return fleet_paths
+
+#assumes matching order has been determined
+def fleet_path(initial_fleet, target_targer, control):
+
+	
 
 #RETURNS A GRAPHICAL RENDERING OF A STATE
 def state_to_cube(state):
