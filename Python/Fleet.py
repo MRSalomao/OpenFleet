@@ -445,7 +445,7 @@ def collision(state_a, state_b):
 	xa = state_a[0]; ya = state_a[1]; za = state_a[2];
 	xb = state_b[0]; yb = state_b[1]; zb = state_b[2];
 	
-	if (xa-xb)**2. + (ya-yb)**2. + (za-zb)**2. < radius**2.:
+	if (xa-xb)**2. + (ya-yb)**2. + (za-zb)**2. > radius**2.:
 		return False
 	else:
 		return True
@@ -460,6 +460,7 @@ def valid_state(state, siblings):
 				
 		return True
 
+#assumes path and sibling paths are of same lengths
 def collision_paths(path, sibling_paths):
 	
 	path_length = len(path[:,0])
@@ -469,12 +470,93 @@ def collision_paths(path, sibling_paths):
 			return False	
 	
 	return True	
+
+#assumes matching order has been determined
+def fleet_sequential_avoidance(initial_fleet, final_fleet, control):
+
+	n_fleet = len(initial_fleet[:,0])
+
+	num_siblings = 1
+
+	rrt_a, path_a, u_a, rrt_b, path_b, u_b = \
+	generate_BiD_path(initial_fleet[0,:], final_fleet[target_i,:], control)
+	b_flip = np.fliplr(path_b.transpose()).transpose()
+	sat_path = np.vstack([path_a, b_flip])
+
+	sibling_paths = np.zeros(num_siblings, len(sat_path), 13)
+	sibling_paths[0,:,:] = sat_path
+	max_sat_path = len(sat_path)
+
+	for i in range(n_fleet):
+
+		rrt_a, path_a, u_a, rrt_b, path_b, u_b = \
+		generate_BiD_path(initial_fleet[i,:], final_fleet[target_i,:], control)
+		b_flip = np.fliplr(path_b.transpose()).transpose()
+		sat_path = np.vstack([path_a, b_flip])
+
+		sat_length = len(sat_path)
+
+		if sat_length <= max_sat_path:
+			
+			#truncate sibling paths
+			sat_siblings =  sibling_paths[:,0:sat_length,:]
+			
+		else:
+			
+			#extend sibling paths
+			sat_siblings = np.zeros(num_siblings, sat_length, 13)
+			
+			sat_siblings[: ,0:max_sat_path, :] = sibling_paths
+#CAUTION: index error possible
+			for j in range(max_sat_path,sat_length):
+				sat_siblings[:,j,:] = sat_siblings[:,max_sat_path,:]
+			
+		if collision_paths(sat_path, sat_siblings):
+			print("BAD PATH, RECOMPUTING TRAJECTORY")
+			continue
+			
+		num_siblings += 1
+		if sat_length <= max_sat_path:
+			
+			#extend sat_path
+			sat_path_extend = np.zeros(max_sat_path,13)
+			sat_path_extend[0:sat_length] = sat_path
+			
+			for j in range(sat_length,max_sat_path):
+				sat_path_extend[j,:] = sat_path_extend[sat_length,:]
+				
+			new_sibling_paths = np.zeros(num_siblings, max_sat_path, 13)
+			new_sibling_paths[0:num_siblings-1, :, :] = sibling_paths
+			new_sibling_paths[num_siblings,:,:] = sat_path_extend
+			
+			sibling_paths = new_sibling_paths
+			
+		else:
+			
+			#extend sibling paths
+			sibling_paths_extend = np.zeros(num_siblings, sat_length, 13)
+			sibling_paths_extend[:,0:max_sat_path,:] = sibling_paths
+			for j in range(max_sat_path,sat_length):
+				sibling_paths_extend[:,j,:] = \
+				sibling_paths_extend[:,max_sat_path,:]
+			
+			new_sibling_paths = np.zeros(num_siblings, sat_length, 13)
+			new_sibling_paths[0:num_siblings-1, :, :] = sibling_paths_extend
+			new_sibling_paths[num_siblings,:,:] = sat_path
+			
+			sibling_paths = new_sibling_paths
+			
+		fleet_path = sibling_paths
+		
+		return fleet_path				
 	
 
 def collision_free_BiD(start_state, goal_state, sibling_path, controls):
 
 	n_sibilings = len(sibling_path[:,0,0])
 	sibling_length = len(sibling_path[0,:,0])
+	
+	sibling_final = sibling_path(:,sibling_length,:)
 	
 	initial_state = start_state
 	final_state = goal_state
@@ -609,9 +691,18 @@ def collision_free_BiD(start_state, goal_state, sibling_path, controls):
 				
 				b_states = np.fliplr(path_states_B.transpose()).transpose()
 				
-				a_length = len(path_states_A)
+				a_length = len(path_states_A); b_length = len(b_states)
 
-				if a_length > sibling_length:
+				sibling_path_2 = np.zeros(n_siblings, len(b_states), 13)
+
+#CAUTION: potential indexing error
+				if sibling_length < a_length:
+										
+					for i in range(n_siblings):
+						sibling_path_2[i,:,:] = sibling_path_2[i,:,:] \
+						+ sibling_final[i,:]
+				elif sibling_length >= a_length and sibling_length < 
+					
 					
 				else:
 				
@@ -635,7 +726,7 @@ def collision_free_BiD(start_state, goal_state, sibling_path, controls):
 
 
 #DESCRIPTION:
-#	SIMPLE FLEET PLANNER. APPLES A BI-PARTITE MATCHING ALGORITHM
+#	SIMPLE FLEET PLANNER. APPLIES A BI-PARTITE MATCHING ALGORITHM
 #	BASED ON METRIC DISTANCES
 #INPUT: 
 #	INITIAL_FLEET IS A MATRIX (FLEET SIZE X STATE SIZE)
@@ -711,10 +802,6 @@ def fleet_simple(initial_fleet, final_fleet, control):
 				fleet_paths[i,j,:] = final_state
 	 
 	return fleet_paths
-
-#assumes matching order has been determined
-def fleet_path(initial_fleet, target_targer, control):
-
 	
 
 #RETURNS A GRAPHICAL RENDERING OF A STATE
