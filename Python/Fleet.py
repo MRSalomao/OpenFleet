@@ -41,7 +41,7 @@ eps = .5
 #CUBE MASS AND GEOMETRY 
 #FOR COOL ALTERNATIVES check out 
 #https://en.wikipedia.org/wiki/List_of_moments_of_inertia
-M = 1.0; l = .5; w = .5; d = .5
+M = 1; l = .5; w = .5; d = .5
 I = (1./12)*M*np.array([[(l*l + d*d), 0., 0.],
 		  [0., (w*w + d*d), 0.],
 		  [0., 0., (w*w + l*l)]])
@@ -413,6 +413,7 @@ def generate_BiD_path(start_state, goal_state, controls):
 			best_dist = dist
 
 		if (count%50) == 0:
+			print('	NODE:	' + str(count))
 			print('	BEST DISTANCE:		' + str(best_dist))
 #			print('DIST:		' + str(dist))
 
@@ -445,7 +446,7 @@ def collision(state_a, state_b):
 	xa = state_a[0]; ya = state_a[1]; za = state_a[2];
 	xb = state_b[0]; yb = state_b[1]; zb = state_b[2];
 	
-	if (xa-xb)**2. + (ya-yb)**2. + (za-zb)**2. > radius**2.:
+	if (xa-xb)**2. + (ya-yb)**2. + (za-zb)**2. > 4.*radius**2.:
 		return False
 	else:
 		return True
@@ -467,9 +468,9 @@ def collision_paths(path, sibling_paths):
 	
 	for i in range(path_length):
 		if valid_state(path[i,:], sibling_paths[:,i,:]) == False:
-			return False	
+			return True	
 	
-	return True	
+	return False	
 
 #assumes matching order has been determined
 def fleet_sequential_avoidance(initial_fleet, final_fleet, control):
@@ -478,23 +479,34 @@ def fleet_sequential_avoidance(initial_fleet, final_fleet, control):
 
 	num_siblings = 1
 
+	print("Sat path " + str(0))
 	rrt_a, path_a, u_a, rrt_b, path_b, u_b = \
-	generate_BiD_path(initial_fleet[0,:], final_fleet[target_i,:], control)
+	generate_BiD_path(initial_fleet[0,:], final_fleet[0,:], control)
 	b_flip = np.fliplr(path_b.transpose()).transpose()
 	sat_path = np.vstack([path_a, b_flip])
 
-	sibling_paths = np.zeros(num_siblings, len(sat_path), 13)
+	sibling_paths = np.zeros([num_siblings, len(sat_path[:,0]), 13])
 	sibling_paths[0,:,:] = sat_path
-	max_sat_path = len(sat_path)
+	max_sat_path = len(sat_path[:,0])
 
-	for i in range(n_fleet):
+	print('	First Sat path shape:	' + str(np.shape(sibling_paths)))	
 
+
+#	print("Fleet size " + str(n_fleet))
+	
+
+#	for i in range(1,n_fleet):
+	i = 1
+	while i < n_fleet:
+		
+		print("Sat path " + str(i))
+		
 		rrt_a, path_a, u_a, rrt_b, path_b, u_b = \
-		generate_BiD_path(initial_fleet[i,:], final_fleet[target_i,:], control)
+		generate_BiD_path(initial_fleet[i,:], final_fleet[i,:], control)
 		b_flip = np.fliplr(path_b.transpose()).transpose()
 		sat_path = np.vstack([path_a, b_flip])
 
-		sat_length = len(sat_path)
+		sat_length = len(sat_path[:,0])
 
 		if sat_length <= max_sat_path:
 			
@@ -504,59 +516,67 @@ def fleet_sequential_avoidance(initial_fleet, final_fleet, control):
 		else:
 			
 			#extend sibling paths
-			sat_siblings = np.zeros(num_siblings, sat_length, 13)
+			sat_siblings = np.zeros([num_siblings, sat_length, 13])
 			
 			sat_siblings[: ,0:max_sat_path, :] = sibling_paths
 #CAUTION: index error possible
 			for j in range(max_sat_path,sat_length):
-				sat_siblings[:,j,:] = sat_siblings[:,max_sat_path,:]
+				sat_siblings[:,j,:] = sat_siblings[:,max_sat_path-1,:]
 			
 		if collision_paths(sat_path, sat_siblings):
-			print("BAD PATH, RECOMPUTING TRAJECTORY")
+			print("		BAD PATH, RECOMPUTING TRAJECTORY...")
 			continue
+		
+		print('	New Sibling shape:	' + str(np.shape(sat_path)))	
+		print('	Siblings Path shape: 	' + str(np.shape(sibling_paths)))	
 			
+		i += 1
 		num_siblings += 1
 		if sat_length <= max_sat_path:
 			
 			#extend sat_path
-			sat_path_extend = np.zeros(max_sat_path,13)
+			sat_path_extend = np.zeros([max_sat_path,13])
 			sat_path_extend[0:sat_length] = sat_path
 			
 			for j in range(sat_length,max_sat_path):
-				sat_path_extend[j,:] = sat_path_extend[sat_length,:]
-				
-			new_sibling_paths = np.zeros(num_siblings, max_sat_path, 13)
+				sat_path_extend[j,:] = sat_path_extend[sat_length-1,:]
+			
+			#update sibling path	
+			new_sibling_paths = np.zeros([num_siblings, max_sat_path, 13])
 			new_sibling_paths[0:num_siblings-1, :, :] = sibling_paths
-			new_sibling_paths[num_siblings,:,:] = sat_path_extend
+			new_sibling_paths[num_siblings-1,:,:] = sat_path_extend
 			
 			sibling_paths = new_sibling_paths
 			
 		else:
 			
 			#extend sibling paths
-			sibling_paths_extend = np.zeros(num_siblings, sat_length, 13)
+			sibling_paths_extend = np.zeros([num_siblings-1, sat_length, 13])
 			sibling_paths_extend[:,0:max_sat_path,:] = sibling_paths
 			for j in range(max_sat_path,sat_length):
 				sibling_paths_extend[:,j,:] = \
-				sibling_paths_extend[:,max_sat_path,:]
+				sibling_paths_extend[:,max_sat_path-1,:]
 			
-			new_sibling_paths = np.zeros(num_siblings, sat_length, 13)
+			#update sibling path AND max_sat_path	
+			new_sibling_paths = np.zeros([num_siblings, sat_length, 13])
 			new_sibling_paths[0:num_siblings-1, :, :] = sibling_paths_extend
-			new_sibling_paths[num_siblings,:,:] = sat_path
+			new_sibling_paths[num_siblings-1,:,:] = sat_path
+			max_sat_path = sat_length
+			
 			
 			sibling_paths = new_sibling_paths
 			
-		fleet_path = sibling_paths
+	fleet_path = sibling_paths
 		
-		return fleet_path				
+	return fleet_path				
 	
-
-def collision_free_BiD(start_state, goal_state, sibling_path, controls):
+#RaBiD RRT: recursive asymmetric BiD RRT
+def RaBiD_RRT(start_state, goal_state, sibling_path, controls):
 
 	n_sibilings = len(sibling_path[:,0,0])
 	sibling_length = len(sibling_path[0,:,0])
 	
-	sibling_final = sibling_path(:,sibling_length,:)
+	sibling_final = sibling_path[:,sibling_length,:]
 	
 	initial_state = start_state
 	final_state = goal_state
@@ -701,13 +721,15 @@ def collision_free_BiD(start_state, goal_state, sibling_path, controls):
 					for i in range(n_siblings):
 						sibling_path_2[i,:,:] = sibling_path_2[i,:,:] \
 						+ sibling_final[i,:]
-				elif sibling_length >= a_length and sibling_length < 
+				elif sibling_length >= a_length and sibling_length < 1:
 					
+					return 0
 					
 				else:
 				
-				remaining_path = sibling_path[:,n_sibilings - a_length,:]
-				
+#				remaining_path = sibling_path[:,n_sibilings - a_length,:]
+
+					return 0				
 				#FINISHING UP THIS PART
 				
 				
@@ -748,14 +770,21 @@ def fleet_simple(initial_fleet, final_fleet, control):
 											final_fleet[j,:])
 
 	#COMPUTE BIPARTITE MATCHING ASSIGNMENTS (HUNGARIAN ~O(N^3), N: n_fleet)
+	target_fleet = np.zeros([n_fleet,13])
 	m = Munkres()
 	indices = m.compute(cost_matrix)
 	assignments = np.zeros(n_fleet)
 	for i in range(n_fleet):
-		assignments[i] = indices[i][1]		
+		assignments[i] = indices[i][1]	
+		target_fleet[i,:] = final_fleet[assignments[i],:]	
 #		np.array([indices[i][1], indices[i][1], indices[2][1]])  
+	
 
+	#COMPUTE PATHS
+	fleet_paths = fleet_sequential_avoidance(initial_fleet, target_fleet,control)
+	
 
+	'''
 	#COMPUTE PATHS
 	MAX_PATH = 10000
 	overshoot = np.zeros([n_fleet, MAX_PATH, 13])
@@ -800,12 +829,14 @@ def fleet_simple(initial_fleet, final_fleet, control):
 			#print('sat_length: '+str(sat_length))
 			for j in range(int(sat_length),int(max_path_length)):			
 				fleet_paths[i,j,:] = final_state
-	 
+	''' 
+	
+	
 	return fleet_paths
 	
 
 #RETURNS A GRAPHICAL RENDERING OF A STATE
-def state_to_cube(state):
+def state_to_cube(state, ax):
 
 	quat = state[3:7]
 	pos = state[0:3]
@@ -825,7 +856,7 @@ def state_to_cube(state):
 
 	cube_corners = rotated_corners + np.array([pos,]*8).transpose()
 
-	ax = Axes3D(fig)
+#	ax = Axes3D(fig)
 	ax.set_xlim([0, 10])
 	ax.set_ylim([0, 10])
 	ax.set_zlim([0, 10])
@@ -929,6 +960,49 @@ def plot_rrt(rrt_a, path_a, rrt_b, path_b):
 	ax_rrt.set_zlabel('Z Label')
 
 	plt.show()
+			
+def state_to_fleet(fleet_state, fig):
+
+	n_fleet = len(fleet_state[:,0])
+
+	ax = Axes3D(fig)
+
+	for i in range(n_fleet):
+
+		sat = fleet_state[i,:]
+
+		state_to_cube(sat, ax)
+
+	return ax
+
+#####################
+#ANIMATION
+#####################
+def animate_fleet(fleet_paths, animation_file):
+
+	animation_path = '../../../Animations/'
+	n_frames = len(fleet_paths[0,:,0]) - 1
+
+	fig = plt.figure()
+	ax = Axes3D(fig)
+	ax.set_xlim([0, 10])
+	ax.set_ylim([0, 10])
+	ax.set_zlim([0, 10])
+
+	def init():	
+		return ax,
+
+	def animate(i):
+		ax_fleet = state_to_fleet(fleet_paths[:,i,:], fig)
+		print('		Progress:	' + str('%.2f' % (100.*i/n_frames)) + '%')
+		return ax_fleet
+
+	# call the animator.  blit=True means only re-draw the parts that have changed.
+	anim = animation.FuncAnimation(fig, animate, init_func=init,
+	                               frames=n_frames, interval=100, blit=True)
+
+	print('SAVING ANIMATION...')
+	anim.save(animation_path + animation_file)
 				
 #PLOTS 3D BIDIRECTIONAL PATHS FOR FLEET				
 def plot_fleet(fleet_paths):
