@@ -113,7 +113,7 @@ def random_state_bias(bias_state, gamma):
 #DEFINE STATE METRIC
 def state_metric(x, y):
 
-	w_p = .25; w_q = .00025; w_v = .025; w_w = .025
+	w_p = .25; w_q = .25; w_v = .025; w_w = .025
 	delta = x - y
 
 	dist = w_p*(np.dot(delta[0:3],delta[0:3]))	
@@ -181,6 +181,23 @@ def propagate(x, u, del_t):
 	
 	return x_prop	
 
+#RUNGE KUTTA 4
+def propagate_rk4(x, u, del_t):
+
+	dt = .01
+	n = int(del_t / dt)
+	x_prop = x
+	for i in range(n):	
+	
+		k1 = x_dot(x_prop, u)
+		k2 = x_dot(x_prop + .5*dt*k1, u)
+		k3 = x_dot(x_prop + .5*dt*k2, u)
+		k4 = x_dot(x_prop + dt*k3, u)	
+	
+		x_prop += dt*(k1+2.*k2+2.*k3+k4)/6.
+		
+	return x_prop
+
 #DESCRIPTION:
 #	EXTENDS X_NEAR TOWARDS X BY SELECTING 'BEST' CONTROL
 #	FOR LOOP CAN BE MADE PARALLEL
@@ -202,7 +219,7 @@ def NEW_STATE(x, x_near, u_control):
 	for i in range(uN):
 		x_o = np.zeros(13) + x_near
 		u_i = U[i,:]
-		x_i = propagate(x_o, u_i, T)
+		x_i = propagate_rk4(x_o, u_i, T)
 	
 		#COLLISION DETECTION WOULD GO HERE
 	
@@ -489,13 +506,8 @@ def fleet_sequential_avoidance(initial_fleet, final_fleet, control):
 	sibling_paths[0,:,:] = sat_path
 	max_sat_path = len(sat_path[:,0])
 
-	print('	First Sat path shape:	' + str(np.shape(sibling_paths)))	
+	print('	First Sat path shape:	' + str(np.shape(sibling_paths)))		
 
-
-#	print("Fleet size " + str(n_fleet))
-	
-
-#	for i in range(1,n_fleet):
 	i = 1
 	while i < n_fleet:
 		
@@ -573,10 +585,10 @@ def fleet_sequential_avoidance(initial_fleet, final_fleet, control):
 #RaBiD RRT: recursive asymmetric BiD RRT
 def RaBiD_RRT(start_state, goal_state, sibling_path, controls):
 
-	n_sibilings = len(sibling_path[:,0,0])
+	n_siblings = len(sibling_path[:,0,0])
 	sibling_length = len(sibling_path[0,:,0])
 	
-	sibling_final = sibling_path[:,sibling_length,:]
+	sibling_final = sibling_path[:,sibling_length-1,:]
 	
 	initial_state = start_state
 	final_state = goal_state
@@ -613,14 +625,15 @@ def RaBiD_RRT(start_state, goal_state, sibling_path, controls):
 												rrt_controls_A, rand_state,
 												controls)
 			
-			depth = shortest_path_length(rrt_graph_A, 0, index_A)
+			depth = nx.shortest_path_length(rrt_graph_A, 0, index_A)
 			
 #caution: indexing error possible			
-			if depth + 1 > sibling_length:
-				sibling_states = sibling_path[:,sibling_length,:]
+			if depth + 1 <= sibling_length:
+				#truncate siblings
+				sibling_states = sibling_path[:,depth,:]
 			else:
-				sibling_states = sibling_path[:,depth+1,:]
-			
+				sibling_states = sibling_path[:,sibling_length-1,:]
+
 			#if there is a collision skip
 			if valid_state(newstate_A, sibling_states) == False:
 				continue
@@ -652,7 +665,58 @@ def RaBiD_RRT(start_state, goal_state, sibling_path, controls):
 			if dist <= eps:
 				path_A = nx.shortest_path(rrt_graph_A, 0, n_nodes_A)
 				path_B = nx.shortest_path(rrt_graph_B, 0, n_nodes_B)
-				break
+
+				path_states_A = np.zeros([len(path_A), 13])
+				for i in range(len(path_A)):
+					path_states_A[i,:] = rrt_states_A[path_A[i],:]
+
+				path_states_B = np.zeros([len(path_B), 13])
+				for i in range(len(path_B)):
+					path_states_B[i,:] = rrt_states_B[path_B[i],:]
+
+				a_states = path_states_A
+				b_states = np.fliplr(path_states_B.transpose()).transpose()				
+
+				a_length = len(path_states_A); b_length = len(b_states)
+
+				sibling_path_2 = np.zeros([n_siblings, len(b_states), 13])
+
+	#CAUTION: potential indexing error
+				if sibling_length <= a_length:
+
+					for i in range(b_length):
+						sibling_path_2[:,i,:] = sibling_final
+
+				elif sibling_length > a_length and sibling_length <= \
+					 (a_length + b_length):
+
+					for i in range(sibling_length-a_length):
+						sibling_path_2[:,i,:] = sibling_path[:,i+a_length,:]
+
+					for i in range(a_length+b_length-sibling_length):
+						sibling_path_2[:,i,:] = sibling_final
+
+				else:
+
+					for i in range(b_length):
+						sibling_path_2[:,i,:] = sibling_path[:,i+a_length,:]
+
+				#beauitful recursive part
+				if collision_paths(b_states, sibling_path_2) == True:
+
+					print('		Collision Found in 2nd half')
+					print('		Recursive BiD search...')
+					b_states = RaBiD_RRT(b_states[0,:], b_states[b_length-1],\
+										 sibling_path_2, controls)
+
+				else:
+
+					#b_states is good to go
+					pass
+
+				path = np.vstack((a_states, b_states))
+
+				return path
 		
 		else:	
 			#extend tree B towards random state
@@ -675,13 +739,14 @@ def RaBiD_RRT(start_state, goal_state, sibling_path, controls):
 												controls)
 												
 			
-			depth = shortest_path_length(rrt_graph_A, 0, index_A)
+			depth = nx.shortest_path_length(rrt_graph_A, 0, index_A)
 			
 #caution: indexing error possible			
-			if depth + 1 > sibling_length:
-				sibling_states = sibling_path[:,sibling_length,:]
+			if depth + 1 <= sibling_length:
+				sibling_states = sibling_path[:,depth,:]				
 			else:
-				sibling_states = sibling_path[:,depth+1,:]
+				sibling_states = sibling_path[:,sibling_length-1,:]
+	
 	
 			#if there is a collision skip
 			if valid_state(newstate_A, sibling_states) == False:
@@ -709,43 +774,155 @@ def RaBiD_RRT(start_state, goal_state, sibling_path, controls):
 				for i in range(len(path_B)):
 					path_states_B[i,:] = rrt_states_B[path_B[i],:]
 				
-				b_states = np.fliplr(path_states_B.transpose()).transpose()
+				a_states = path_states_A
+				b_states = np.fliplr(path_states_B.transpose()).transpose()				
 				
 				a_length = len(path_states_A); b_length = len(b_states)
 
-				sibling_path_2 = np.zeros(n_siblings, len(b_states), 13)
+				sibling_path_2 = np.zeros([n_siblings, len(b_states), 13])
 
 #CAUTION: potential indexing error
-				if sibling_length < a_length:
-										
-					for i in range(n_siblings):
-						sibling_path_2[i,:,:] = sibling_path_2[i,:,:] \
-						+ sibling_final[i,:]
-				elif sibling_length >= a_length and sibling_length < 1:
+				if sibling_length <= a_length:
+						
+					for i in range(b_length):
+						sibling_path_2[:,i,:] = sibling_final
+						
+				elif sibling_length > a_length and sibling_length <= \
+					 (a_length + b_length):
 					
-					return 0
-					
+					for i in range(sibling_length-a_length):
+						sibling_path_2[:,i,:] = sibling_path[:,i+a_length,:]
+						
+					for i in range(a_length+b_length-sibling_length):
+						sibling_path_2[:,i,:] = sibling_final
+											
 				else:
 				
-#				remaining_path = sibling_path[:,n_sibilings - a_length,:]
-
-					return 0				
-				#FINISHING UP THIS PART
+					for i in range(b_length):
+						sibling_path_2[:,i,:] = sibling_path[:,i+a_length,:]
 				
+				#beauitful recursive part
+				if collision_paths(b_states, sibling_path_2) == True:
+					
+					print('		Collision Found in 2nd half')
+					print('		Recursive BiD search...')
+					b_states = RaBiD_RRT(b_states[0,:], b_states[b_length-1],\
+										 sibling_path_2, controls)
+					
+				else:
+					
+					#b_states is good to go
+					pass
 				
-				break		
+				path = np.vstack((a_states, b_states))
 				
+				return path
+								
 		count += 1
 
 		if dist < best_dist:
 			best_dist = dist
 
 		if (count%50) == 0:
+			print('	NODES:	' + str(count))			
 			print('	BEST DISTANCE:		' + str(best_dist))
-#			print('DIST:		' + str(dist))
 
-	return 0
 
+#assumes matching order has been determined
+def fleet_RaBiD(initial_fleet, final_fleet, control):
+
+	n_fleet = len(initial_fleet[:,0])
+
+	num_siblings = 1
+
+	print("Sat path " + str(0))
+	rrt_a, path_a, u_a, rrt_b, path_b, u_b = \
+	generate_BiD_path(initial_fleet[0,:], final_fleet[0,:], control)
+	b_flip = np.fliplr(path_b.transpose()).transpose()
+	sat_path = np.vstack([path_a, b_flip])
+
+	sibling_paths = np.zeros([num_siblings, len(sat_path[:,0]), 13])
+	sibling_paths[0,:,:] = sat_path
+	max_sat_path = len(sat_path[:,0])
+
+	print('	First Sat path shape:	' + str(np.shape(sibling_paths)))		
+
+	i = 1
+	while i < n_fleet:
+
+		print("Sat path " + str(i))
+
+#		rrt_a, path_a, u_a, rrt_b, path_b, u_b = \
+#		generate_BiD_path(initial_fleet[i,:], final_fleet[i,:], control)
+#		b_flip = np.fliplr(path_b.transpose()).transpose()
+#		sat_path = np.vstack([path_a, b_flip])
+
+		sat_path = RaBiD_RRT(initial_fleet[i,:], final_fleet[i,:],\
+		 					 sibling_paths, control)
+
+		sat_length = len(sat_path[:,0])
+
+#		if sat_length <= max_sat_path:
+
+			#truncate sibling paths
+#			sat_siblings =  sibling_paths[:,0:sat_length,:]
+
+#		else:
+
+			#extend sibling paths
+#			sat_siblings = np.zeros([num_siblings, sat_length, 13])
+
+#			sat_siblings[: ,0:max_sat_path, :] = sibling_paths
+#CAUTION: index error possible
+#			for j in range(max_sat_path,sat_length):
+#				sat_siblings[:,j,:] = sat_siblings[:,max_sat_path-1,:]
+
+#		if collision_paths(sat_path, sat_siblings):
+#			print("		BAD PATH, RECOMPUTING TRAJECTORY...")
+#			continue
+
+		print('	New Sibling shape:	' + str(np.shape(sat_path)))	
+		print('	Siblings Path shape: 	' + str(np.shape(sibling_paths)))	
+
+		i += 1
+		num_siblings += 1
+		if sat_length <= max_sat_path:
+
+			#extend sat_path
+			sat_path_extend = np.zeros([max_sat_path,13])
+			sat_path_extend[0:sat_length] = sat_path
+
+			for j in range(sat_length,max_sat_path):
+				sat_path_extend[j,:] = sat_path_extend[sat_length-1,:]
+
+			#update sibling path	
+			new_sibling_paths = np.zeros([num_siblings, max_sat_path, 13])
+			new_sibling_paths[0:num_siblings-1, :, :] = sibling_paths
+			new_sibling_paths[num_siblings-1,:,:] = sat_path_extend
+
+			sibling_paths = new_sibling_paths
+
+		else:
+
+			#extend sibling paths
+			sibling_paths_extend = np.zeros([num_siblings-1, sat_length, 13])
+			sibling_paths_extend[:,0:max_sat_path,:] = sibling_paths
+			for j in range(max_sat_path,sat_length):
+				sibling_paths_extend[:,j,:] = \
+				sibling_paths_extend[:,max_sat_path-1,:]
+
+			#update sibling path AND max_sat_path	
+			new_sibling_paths = np.zeros([num_siblings, sat_length, 13])
+			new_sibling_paths[0:num_siblings-1, :, :] = sibling_paths_extend
+			new_sibling_paths[num_siblings-1,:,:] = sat_path
+			max_sat_path = sat_length
+
+
+			sibling_paths = new_sibling_paths
+
+	fleet_path = sibling_paths
+
+	return fleet_path
 
 #DESCRIPTION:
 #	SIMPLE FLEET PLANNER. APPLIES A BI-PARTITE MATCHING ALGORITHM
@@ -781,8 +958,8 @@ def fleet_simple(initial_fleet, final_fleet, control):
 	
 
 	#COMPUTE PATHS
-	fleet_paths = fleet_sequential_avoidance(initial_fleet, target_fleet,control)
-	
+#	fleet_paths = fleet_sequential_avoidance(initial_fleet, target_fleet,control)
+	fleet_paths = fleet_RaBiD(initial_fleet, target_fleet, control)
 
 	'''
 	#COMPUTE PATHS

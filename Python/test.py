@@ -93,21 +93,20 @@ fleet_paths = Fleet.fleet_simple(initial_fleet, final_fleet, U_3DwithRot)
 
 Fleet.plot_fleet(fleet_paths)
 
+'''
 np.set_printoptions(threshold='nan')
 
-'''
+
 path_length = len(fleet_paths[0,:,0])
 text_file_a = open("path_a.txt", "w")
 text_file_b = open("path_b.txt", "w")
 text_file_c = open("path_c.txt", "w")
 
 
-for i in range(path_length):
 
-	text_file_a.write(str(fleet_paths[0,:,:]))
-	text_file_b.write(str(fleet_paths[0,:,:]))
-	text_file_c.write(str(fleet_paths[0,:,:]))
-
+text_file_a.write(str(fleet_paths[0,:,:]))
+text_file_b.write(str(fleet_paths[1,:,:]))
+text_file_c.write(str(fleet_paths[2,:,:]))
 
 text_file_a.close()
 text_file_b.close()
