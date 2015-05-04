@@ -32,7 +32,7 @@ class BoundingBox:
     
     # Just making sure all the values are float
     self.CenterOfMass = [float(i) for i in self.CenterOfMass]
-    self.CenterOfMass += offset 
+    self.CenterOfMass = np.add(np.array(self.CenterOfMass),np.array(offset))
     
     self.Dimensions = [float(i) for i in self.Dimensions]
     
