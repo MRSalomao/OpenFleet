@@ -26,7 +26,7 @@
     <property name="title">
      <string/>
     </property>
-    <widget class="QPushButton" name="pushButton">
+    <widget class="QPushButton" name="loadBtn">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -39,7 +39,7 @@
       <string>Load from file</string>
      </property>
     </widget>
-    <widget class="QCheckBox" name="checkBox">
+    <widget class="QCheckBox" name="dispTrajectoriesBox">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -51,8 +51,11 @@
      <property name="text">
       <string>Display Trajectories</string>
      </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
     </widget>
-    <widget class="QRadioButton" name="radioButton">
+    <widget class="QRadioButton" name="issBtn">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -69,7 +72,7 @@ Space Station</string>
       <bool>true</bool>
      </property>
     </widget>
-    <widget class="QRadioButton" name="radioButton_2">
+    <widget class="QRadioButton" name="earthBtn">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -82,7 +85,7 @@ Space Station</string>
       <string>Orbiting Earth</string>
      </property>
     </widget>
-    <widget class="QRadioButton" name="radioButton_3">
+    <widget class="QRadioButton" name="asteroidBtn">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -140,7 +143,7 @@ Space Station</string>
       <enum>Qt::Horizontal</enum>
      </property>
     </widget>
-    <widget class="QPushButton" name="pushButton_2">
+    <widget class="QPushButton" name="playBtn">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -153,7 +156,7 @@ Space Station</string>
       <string>Play</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="pushButton_3">
+    <widget class="QPushButton" name="pauseBtn">
      <property name="geometry">
       <rect>
        <x>80</x>
@@ -166,7 +169,7 @@ Space Station</string>
       <string>Pause</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="pushButton_4">
+    <widget class="QPushButton" name="simulateBtn">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -192,7 +195,7 @@ Space Station</string>
       <enum>Qt::Horizontal</enum>
      </property>
     </widget>
-    <widget class="QWidget" name="">
+    <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
        <x>20</x>
@@ -260,6 +263,9 @@ Simulator</string>
       <width>621</width>
       <height>551</height>
      </rect>
+    </property>
+    <property name="mouseTracking">
+     <bool>true</bool>
     </property>
    </widget>
   </widget>

@@ -20,11 +20,11 @@ CONFIG += c++11
 SOURCES += main.cpp\
         mainwindow.cpp \
     renderer.cpp \
-    planner.cpp
+    ssplanner.cpp
 
 HEADERS  += mainwindow.h \
     renderer.h \
     smallsat.h \
-    planner.h
+    ssplanner.h
 
 FORMS    += mainwindow.ui
