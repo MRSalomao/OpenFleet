@@ -6,6 +6,12 @@ Our starting point was Lavalle and Kuffner’s Randomized Kinodynamic Planning p
 
 Our key contribution is generalizing LaValle et al’s motion planning algorithms to fleets of satellites in order to accomplish synergistic outcomes like stereo imaging. In our generalization, we want to validate whether the increased degrees of freedom involved with fleet planning can come with a discounted computational cost. The key to making this work is developing adequate inter-fleet collision checking. We also design, run and render simulations of missions based on real world models like the International Space Station, the US Space Shuttle, and RQ36 and ‘Shuttle Island’ asteroids.  
 
+# OpenFleet Toolkit
+
+Python code depends on the following libraries: sklearn, munkres, numpy, scipy, networkx and matplotlib.
+
+C++ code depends on: OMPL, ODE, QT5.
+
 ## Participants
 
 Andre Cunha
