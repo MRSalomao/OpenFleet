@@ -24,7 +24,7 @@ SOURCES += main.cpp\
 
 HEADERS  += mainwindow.h \
     renderer.h \
-    smallsat.h \
-    ssplanner.h
+    ssplanner.h \
+    smallsat.h
 
 FORMS    += mainwindow.ui

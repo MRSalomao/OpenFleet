@@ -22,6 +22,7 @@ class RigidBodyStateSpace : public oc::OpenDEStateSpace
 {
 public:
 
+    // Space bounds are defined here
     RigidBodyStateSpace(const oc::OpenDEEnvironmentPtr &env) : oc::OpenDEStateSpace(env)
     {
         ob::RealVectorBounds bounds(3);
@@ -38,6 +39,7 @@ public:
         setAngularVelocityBounds(bounds);
     }
 
+    // distance metrics for our space
     virtual double distance(const ob::State *s1, const ob::State *s2) const
     {
         const double *p1 = s1->as<oc::OpenDEStateSpace::StateType>()->getBodyPosition(0);
@@ -49,7 +51,7 @@ public:
     }
 };
 
-
+// every state is valid, at a first moment
 class myStateValidityCheckerClass : public ob::StateValidityChecker
 {
 public:
@@ -64,7 +66,7 @@ public:
     }
 };
 
-
+// create the physics world
 class RigidBodyEnvironment : public oc::OpenDEEnvironment
 {
 public:
@@ -128,6 +130,7 @@ public:
         return;
     }
 
+    // basic ODE configuration
     void setPlanningParameters(void)
     {
         // Fill in parameters for OMPL:
@@ -140,6 +143,7 @@ public:
         maxControlSteps_ = 500;
     }
 
+    // instantiate our bodies, their masses, etc
     void createWorld(void)
     {
         bodyWorld = dWorldCreate();
@@ -180,6 +184,7 @@ public:
         threshold_ = 0.5;
     }
 
+    // distance to goal uses the same metric as the metric from state to state
     virtual double distanceGoal(const ob::State *st) const
     {
         const double *pos = st->as<oc::OpenDEStateSpace::StateType>()->getBodyPosition(0);
@@ -191,12 +196,10 @@ public:
 
 };
 
-
+// main class that puts everything together and does the actual simulation
 class SSPlanner
 {
 public:
-    SSPlanner();
-    ~SSPlanner();
     void simulate();
 };
 

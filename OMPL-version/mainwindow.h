@@ -32,6 +32,18 @@ private slots:
 
     void on_simulateBtn_clicked();
 
+    void on_ISS_radio_clicked();
+
+    void on_SolarSail_radio_clicked();
+
+    void on_SpaceShuttle_radio_clicked();
+
+    void on_Asteroid_radio_clicked();
+
+    void on_playBtn_clicked();
+
+    void on_pauseBtn_clicked();
+
 private:
     Ui::MainWindow *ui;
 };

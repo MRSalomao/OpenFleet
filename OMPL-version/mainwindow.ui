@@ -18,9 +18,9 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>110</y>
+      <y>80</y>
       <width>161</width>
-      <height>451</height>
+      <height>481</height>
      </rect>
     </property>
     <property name="title">
@@ -30,7 +30,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>410</y>
+       <y>444</y>
        <width>141</width>
        <height>31</height>
       </rect>
@@ -43,7 +43,7 @@
      <property name="geometry">
       <rect>
        <x>0</x>
-       <y>190</y>
+       <y>253</y>
        <width>171</width>
        <height>22</height>
       </rect>
@@ -55,11 +55,11 @@
       <bool>true</bool>
      </property>
     </widget>
-    <widget class="QRadioButton" name="issBtn">
+    <widget class="QRadioButton" name="ISS_radio">
      <property name="geometry">
       <rect>
        <x>0</x>
-       <y>40</y>
+       <y>70</y>
        <width>171</width>
        <height>51</height>
       </rect>
@@ -72,24 +72,24 @@ Space Station</string>
       <bool>true</bool>
      </property>
     </widget>
-    <widget class="QRadioButton" name="earthBtn">
+    <widget class="QRadioButton" name="SpaceShuttle_radio">
      <property name="geometry">
       <rect>
        <x>0</x>
-       <y>90</y>
+       <y>156</y>
        <width>171</width>
        <height>31</height>
       </rect>
      </property>
      <property name="text">
-      <string>Orbiting Earth</string>
+      <string>Space Shuttle</string>
      </property>
     </widget>
-    <widget class="QRadioButton" name="asteroidBtn">
+    <widget class="QRadioButton" name="Asteroid_radio">
      <property name="geometry">
       <rect>
        <x>0</x>
-       <y>120</y>
+       <y>192</y>
        <width>171</width>
        <height>31</height>
       </rect>
@@ -101,27 +101,28 @@ Space Station</string>
     <widget class="QLabel" name="label_2">
      <property name="geometry">
       <rect>
-       <x>30</x>
-       <y>20</y>
-       <width>91</width>
-       <height>17</height>
+       <x>24</x>
+       <y>44</y>
+       <width>111</width>
+       <height>20</height>
       </rect>
      </property>
      <property name="font">
       <font>
+       <pointsize>12</pointsize>
        <weight>75</weight>
        <bold>true</bold>
       </font>
      </property>
      <property name="text">
-      <string>Environment</string>
+      <string>Environment:</string>
      </property>
     </widget>
     <widget class="Line" name="line">
      <property name="geometry">
       <rect>
        <x>-3</x>
-       <y>160</y>
+       <y>227</y>
        <width>171</width>
        <height>20</height>
       </rect>
@@ -134,7 +135,7 @@ Space Station</string>
      <property name="geometry">
       <rect>
        <x>0</x>
-       <y>230</y>
+       <y>281</y>
        <width>161</width>
        <height>20</height>
       </rect>
@@ -147,7 +148,7 @@ Space Station</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>370</y>
+       <y>404</y>
        <width>61</width>
        <height>31</height>
       </rect>
@@ -160,7 +161,7 @@ Space Station</string>
      <property name="geometry">
       <rect>
        <x>80</x>
-       <y>370</y>
+       <y>404</y>
        <width>71</width>
        <height>31</height>
       </rect>
@@ -173,7 +174,7 @@ Space Station</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>330</y>
+       <y>364</y>
        <width>141</width>
        <height>31</height>
       </rect>
@@ -186,7 +187,7 @@ Space Station</string>
      <property name="geometry">
       <rect>
        <x>0</x>
-       <y>300</y>
+       <y>340</y>
        <width>161</width>
        <height>20</height>
       </rect>
@@ -198,8 +199,8 @@ Space Station</string>
     <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
-       <x>20</x>
-       <y>260</y>
+       <x>15</x>
+       <y>304</y>
        <width>131</width>
        <height>31</height>
       </rect>
@@ -230,12 +231,25 @@ Space Station</string>
       </item>
      </layout>
     </widget>
+    <widget class="QRadioButton" name="SolarSail_radio">
+     <property name="geometry">
+      <rect>
+       <x>0</x>
+       <y>123</y>
+       <width>171</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Solar Sail</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
       <x>0</x>
-      <y>20</y>
+      <y>9</y>
       <width>181</width>
       <height>81</height>
      </rect>

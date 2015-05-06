@@ -7,6 +7,7 @@
 #include <QOpenGLTexture>
 #include "mainwindow.h"
 
+// camera system uses Euler angles - this is to avoid singularities
 #define EPS 0.01f
 
 class Renderer : public QOpenGLWidget, protected QOpenGLFunctions
@@ -15,13 +16,22 @@ public:
     Renderer(QWidget* parent = 0);
     ~Renderer();
 
-    QVector<QVector3D> trajectoryPos;
-    QVector<QQuaternion> trajectoryRot;
-
     static Renderer* si;
+
+    QVector<QVector<QVector3D>> trajectoryPos;
+    QVector<QVector<QQuaternion>> trajectoryRot;
+
+    QVector<QVector3D> asteroidPos;
+    QVector<QQuaternion> asteroidRot;
+    QVector<QVector3D> asteroidVel;
+    QVector<QQuaternion> asteroidAngVel;
+
     int frameCounter = 0;
+    bool isPaused = false;
 
     bool shouldUpdate = true;
+
+    QVector<int> objectsToRender;
 
 protected:
     void initializeGL();
@@ -38,11 +48,14 @@ private:
     void InitMesh();
 
     GLuint *vbo;
-    GLuint *vinx;
+    GLuint *ibo;
+
+    float slowDown = 0.1f; // slow down the original speed, for easier visualization
+    float originalFps = 0.1;
 
     float zoomTarget = 4;
-    float thetaTarget = 0;
-    float phiTarget = 0;
+    float thetaTarget = 0.7;
+    float phiTarget = 0.4;
 
     float theta = 0;
     float phi = 0;
